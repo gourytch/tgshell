@@ -18,10 +18,11 @@ import (
 )
 
 const (
-	PREFIX_EXEC     = "exec "
-	EXEC_TIMEOUT    = 5 * time.Second
-	EXEC_SEND_DELAY = 1 * time.Second
-	EXEC_SEND_LIMIT = 4000
+	PREFIX_EXEC        = "exec "
+	EXEC_TIMEOUT       = 5 * time.Second
+	EXEC_SEND_DELAY    = 1 * time.Second
+	EXEC_SEND_LIMIT    = 4000
+	RECONNECT_INTERVAL = 15 * time.Second
 )
 
 type Config struct {
@@ -74,7 +75,7 @@ func inform_at_start() {
 	} else {
 		ustr = "<unknown>"
 	}
-	inform(fmt.Sprintf("bot started as user %s\nand ready to serve", ustr))
+	inform(fmt.Sprintf("bot started as user\n%s\nand ready to serve", ustr))
 }
 
 func handle_exec(m tgbotapi.Message) {
@@ -103,9 +104,13 @@ func handle_exec(m tgbotapi.Message) {
 func main() {
 	LoadConfig()
 	var err error
-	bot, err = tgbotapi.NewBotAPI(config.Token)
-	if err != nil {
-		log.Fatal(err)
+	for {
+		bot, err = tgbotapi.NewBotAPI(config.Token)
+		if err == nil {
+			break
+		}
+		log.Println("tgbotapi.NewBotAPI() got error", err, ". sleep and re-init")
+		time.Sleep(RECONNECT_INTERVAL)
 	}
 	//bot.Debug = true
 	c := make(chan os.Signal, 1)
@@ -113,7 +118,7 @@ func main() {
 	signal.Notify(c, syscall.SIGTERM)
 	go func() {
 		sig := <-c
-		inform(fmt.Sprintf("execution interrupted by %s", sig))
+		inform(fmt.Sprintf("Got signal <%s>.\nExecution terminated", sig))
 		os.Exit(0)
 	}()
 	shell = sh.NewSession()
@@ -121,7 +126,15 @@ func main() {
 	inform_at_start()
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
-	updates, err := bot.GetUpdatesChan(u)
+	var updates <-chan tgbotapi.Update
+	for {
+		updates, err = bot.GetUpdatesChan(u)
+		if err == nil {
+			break
+		}
+		log.Println("tgbotapi.GetUpdatesChan() got error", err, ", sleep and try again")
+		time.Sleep(RECONNECT_INTERVAL)
+	}
 	for update := range updates {
 		m := update.Message
 		if m.Chat.ID != config.Owner {
