@@ -101,8 +101,8 @@ func handle_exec(m tgbotapi.Message) {
 	}
 }
 
-func main() {
-	LoadConfig()
+func workSession() {
+	log.Println("start work session")
 	var err error
 	for {
 		bot, err = tgbotapi.NewBotAPI(config.Token)
@@ -150,5 +150,15 @@ func main() {
 				bot.Send(msg)
 			}
 		}
+	}
+	log.Println("finish work session")
+}
+
+func main() {
+	LoadConfig()
+	for {
+		workSession()
+		log.Println("delay and return to work")
+		time.Sleep(RECONNECT_INTERVAL)
 	}
 }
