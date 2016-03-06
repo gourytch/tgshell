@@ -64,7 +64,12 @@ func inform(text string) {
 	now := time.Now()
 	s := fmt.Sprintf("%s @ #%s\n%s", now.Format("2006/01/02 15:04:05 MST"), config.Host, text)
 	msg := tgbotapi.NewMessage(config.Owner, s)
-	bot.Send(msg)
+	_, err := bot.Send(msg)
+	if err != nil {
+		log.Printf("bot.Send() error: %s", err)
+	} else {
+		log.Print("bot.Send() without errors")
+	}
 }
 
 func inform_at_start() {
