@@ -6,20 +6,22 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"os/user"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
-	
+
 	"github.com/codeskyblue/go-sh"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 const (
-	PREFIX_EXEC = "exec "
+	PREFIX_EXEC     = "exec "
+	EXEC_TIMEOUT    = 5 * time.Second
+	EXEC_SEND_DELAY = 1 * time.Second
+	EXEC_SEND_LIMIT = 4000
 )
 
 type Config struct {
@@ -31,7 +33,7 @@ type Config struct {
 var config Config
 var bot *tgbotapi.BotAPI
 var job_counter int
-shell := sh.NewSession()
+var shell *sh.Session
 
 func LoadConfig() {
 	exe, err := filepath.Abs(os.Args[0])
@@ -64,37 +66,44 @@ func inform(text string) {
 	bot.Send(msg)
 }
 
-func at_start() {
+func inform_at_start() {
 	u, err := user.Current()
 	var ustr string
 	if err == nil {
-		ustr = fmt.Sprintf("[%s:%s]%s", u.Uid, u.Gid, u.Username)
+		ustr = fmt.Sprintf("[uid=%s:gid=%s] %s", u.Uid, u.Gid, u.Username)
 	} else {
 		ustr = "<unknown>"
 	}
-	inform(fmt.Sprintf("bot started as user %s and ready to serve", ustr))
+	inform(fmt.Sprintf("bot started as user %s\nand ready to serve", ustr))
 }
 
 func handle_exec(m tgbotapi.Message) {
-	cmd := strings.Trim(chat_text[len(PREFIX_EXEC):len(chat_text)])
-	parts := strings.Fields(command)
+	cmd := strings.TrimPrefix(m.Text, PREFIX_EXEC)
+	parts := strings.Fields(cmd)
 	head := parts[0]
 	parts = parts[1:len(parts)]
-	out, err := session.Command(head, parts...).SetTimeout(EXEC_TIMEOUT).Output()
-	var result string
-	if err == nil {
-		result = fmt.Sprintf("RESULT:\n%s", out)
-	} else {
-		result = fmt.Sprintf("ERROR: %s", err)
+	log.Printf("execute '%s' ...", cmd)
+	out, err := shell.Command(head, parts).SetTimeout(EXEC_TIMEOUT).Output()
+	limit := len(out)
+	if EXEC_SEND_LIMIT < limit {
+		limit = EXEC_SEND_LIMIT
 	}
-	msg := tgbotapi.NewMessage(m.Chat.ID, fmt.Srintf("COMMAND:\n%s\n%s", cmd, result))
+	sout := fmt.Sprintf("err:%v\nresult\n%s", err, out[:limit])
+	log.Print(sout)
+	msg := tgbotapi.NewMessage(m.Chat.ID, sout)
 	msg.ReplyToMessageID = m.MessageID
-	bot.Send(msg)
+	_, err = bot.Send(msg)
+	if err != nil {
+		log.Printf("bot.Send() error: %s", err)
+	} else {
+		log.Print("bot.Send() without errors")
+	}
 }
 
 func main() {
 	LoadConfig()
-	bot, err := tgbotapi.NewBotAPI(config.Token)
+	var err error
+	bot, err = tgbotapi.NewBotAPI(config.Token)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -107,20 +116,26 @@ func main() {
 		inform(fmt.Sprintf("execution interrupted by %s", sig))
 		os.Exit(0)
 	}()
-
+	shell = sh.NewSession()
 	log.Printf("authiorized as %s", bot.Self.UserName)
+	inform_at_start()
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates, err := bot.GetUpdatesChan(u)
 	for update := range updates {
-		chat_id := update.Message.Chat.ID
-		chat_text := update.Message.Text
-		if strings.HasPrefix(chat_text, PREFIX_EXEC) {
-			go handle_exec(update.Message)
-		} else {
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-			msg.ReplyToMessageID = update.Message.MessageID
+		m := update.Message
+		if m.Chat.ID != config.Owner {
+			msg := tgbotapi.NewMessage(m.Chat.ID, "Hi, "+m.Chat.UserName)
+			msg.ReplyToMessageID = m.MessageID
 			bot.Send(msg)
+		} else {
+			if strings.HasPrefix(m.Text, PREFIX_EXEC) {
+				go handle_exec(m)
+			} else {
+				msg := tgbotapi.NewMessage(m.Chat.ID, m.Text)
+				msg.ReplyToMessageID = m.MessageID
+				bot.Send(msg)
+			}
 		}
 	}
 }
