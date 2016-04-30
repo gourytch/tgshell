@@ -21,9 +21,12 @@ import (
 )
 
 const (
-	COMMAND_EXEC       = "exec "
-	COMMAND_KEYGEN     = "keygen"
-	COMMAND_EXIT       = "exit"
+	COMMAND_EXEC   = "exec"
+	COMMAND_KEYGEN = "keygen"
+	COMMAND_EXIT   = "exit"
+	COMMAND_UPTIME = "uptime"
+	COMMAND_LIST   = "list"
+
 	EXEC_TIMEOUT       = 5 * time.Second
 	EXEC_SEND_DELAY    = 1 * time.Second
 	EXEC_SEND_LIMIT    = 4000
@@ -113,12 +116,10 @@ func isUser(id int64) bool {
 	return false
 }
 
-func isCommand(text, command string) bool {
-	if text == "" {
-		return false
-	}
-	chunks := strings.Split(text, " ")
-	return strings.EqualFold(chunks[0], command)
+func isCommand(text string, command string) bool {
+	return strings.EqualFold(strings.TrimSpace(
+		strings.SplitN(text+" ", " ", 2)[0]),
+		command)
 }
 
 func inform(text string) {
@@ -196,6 +197,23 @@ func handle_keygen(m *tgbotapi.Message) {
 	bot.Send(msg)
 }
 
+func handle_uptime(m *tgbotapi.Message) {
+	msg := tgbotapi.NewMessage(m.Chat.ID, "UPTIME NIY")
+	msg.ReplyToMessageID = m.MessageID
+	bot.Send(msg)
+}
+
+func handle_list(m *tgbotapi.Message) {
+	var commands []string
+	for name, _ := range handlers {
+		commands = append(commands, name)
+	}
+	msg := tgbotapi.NewMessage(m.Chat.ID, fmt.Sprintf(
+		"available commands:\n%q", commands))
+	msg.ReplyToMessageID = m.MessageID
+	bot.Send(msg)
+}
+
 func handle_exit(m *tgbotapi.Message) {
 	if !isMaster(m.Chat.ID) {
 		msg := tgbotapi.NewMessage(m.Chat.ID, "Insufficient permissions")
@@ -242,6 +260,24 @@ func handle_exec(m *tgbotapi.Message) {
 	}
 }
 
+type Handler func(m *tgbotapi.Message)
+
+var handlers map[string]Handler = make(map[string]Handler)
+
+func addHandler(name string, handler Handler) {
+	handlers[name] = handler
+}
+
+func dispatch(m *tgbotapi.Message) bool {
+	for command, handler := range handlers {
+		if isCommand(m.Text, command) {
+			go handler(m)
+			return true
+		}
+	}
+	return false
+}
+
 func workSession() {
 	log.Println("start work session")
 	var err error
@@ -265,6 +301,16 @@ func workSession() {
 	shell = sh.NewSession()
 	log.Printf("authiorized as %s", bot.Self.UserName)
 	inform_at_start()
+	addHandler("KEYGEN", handle_keygen)
+	//	addHandler("KEY", handle_keygen)
+	addHandler("UPTIME", handle_uptime)
+	//	addHandler("UP", handle_uptime)
+	addHandler("EXIT", handle_exit)
+	addHandler("LIST", handle_list)
+	//	addHandler("COMMANDS", handle_list)
+	addHandler("EXEC", handle_exec)
+	//	addHandler("DO", handle_exec)
+
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	var updates <-chan tgbotapi.Update
@@ -278,16 +324,7 @@ func workSession() {
 	}
 	for update := range updates {
 		m := update.Message
-		switch {
-		case !isUser(m.Chat.ID):
-			go handle_guest(m)
-		case isCommand(m.Text, COMMAND_KEYGEN):
-			go handle_keygen(m)
-		case isCommand(m.Text, COMMAND_EXEC):
-			go handle_exec(m)
-		case isCommand(m.Text, COMMAND_EXIT):
-			go handle_exit(m)
-		default:
+		if !dispatch(m) {
 			msg := tgbotapi.NewMessage(m.Chat.ID, fmt.Sprintf(
 				"U said: <<%s>>", m.Text))
 			msg.ReplyToMessageID = m.MessageID
