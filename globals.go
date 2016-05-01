@@ -25,11 +25,14 @@ type Config struct {
 	Master    int64   `json:"master"`
 	Allow_New bool    `json:"allow_new"`
 	Users     []int64 `json:"users"`
-	Host      string  `json:"-"`
 	Shell     string  `json:"shell"`
+	Data_Dir  string  `json:"datadir"`
+	Display   string  `jdon:"display"`
+	Host      string  `json:"-"`
 }
 
 type HandlerProc func(m *tgbotapi.Message)
+
 type Handler struct {
 	proc HandlerProc
 	info string
@@ -45,12 +48,17 @@ var connect_key string
 var exitcode int
 var sigchan chan os.Signal
 
-func generate_key() {
+func random_string(n int) string {
 	var key []byte
-	for i := 0; i < CONNKEY_SIZE; i++ {
+	count := (n + 3) * 3 / 4
+	for i := 0; i < count; i++ {
 		key = append(key, byte(rand.Int()&0xFF))
 	}
-	connect_key = base64.StdEncoding.EncodeToString(key)
+	return base64.StdEncoding.EncodeToString(key)[:n]
+}
+
+func generate_key() {
+	connect_key = random_string(CONNKEY_SIZE)
 }
 
 func Split2(text string) (token, rest string) {

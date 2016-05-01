@@ -34,6 +34,14 @@ func GetConfigName() string {
 	return AppBaseFileName() + ".config"
 }
 
+func CheckDatadir() {
+	if config.Data_Dir != "" {
+		if err := os.MkdirAll(config.Data_Dir, 0755); err != nil {
+			log.Fatalf("mkDirAll(%s) got error: %s", config.Data_Dir, err)
+		}
+	}
+}
+
 func LoadConfig() {
 	data, err := ioutil.ReadFile(GetConfigName())
 	if err != nil {
@@ -47,6 +55,11 @@ func LoadConfig() {
 	if err != nil {
 		log.Printf("os.Hostname() error: %s", err)
 		config.Host = "unknown"
+	}
+	if config.Data_Dir == "" {
+		config.Data_Dir = AppDir() + "/data"
+		CheckDatadir()
+		SaveConfig()
 	}
 }
 

@@ -89,3 +89,17 @@ func send_reply_document(m *tgbotapi.Message, fname string, data []byte) {
 		log.Printf("Send reply failed: %s", err)
 	}
 }
+
+func send_reply_image(m *tgbotapi.Message, fname string, data []byte) {
+	var msg tgbotapi.PhotoConfig
+	if data == nil {
+		msg = tgbotapi.NewPhotoUpload(m.Chat.ID, fname)
+	} else {
+		fb := tgbotapi.FileBytes{Name: fname, Bytes: data}
+		msg = tgbotapi.NewPhotoUpload(m.Chat.ID, fb)
+	}
+	msg.ReplyToMessageID = m.MessageID
+	if _, err := bot.Send(msg); err != nil {
+		log.Printf("Send reply failed: %s", err)
+	}
+}
