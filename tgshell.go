@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -21,12 +22,6 @@ import (
 )
 
 const (
-	COMMAND_EXEC   = "exec"
-	COMMAND_KEYGEN = "keygen"
-	COMMAND_EXIT   = "exit"
-	COMMAND_UPTIME = "uptime"
-	COMMAND_LIST   = "list"
-
 	EXEC_TIMEOUT       = 5 * time.Second
 	EXEC_SEND_DELAY    = 1 * time.Second
 	EXEC_SEND_LIMIT    = 4000
@@ -40,6 +35,7 @@ type Config struct {
 	Allow_New bool    `json:"allow_new"`
 	Users     []int64 `json:"users"`
 	Host      string  `json:"-"`
+	Shell     string  `json:"shell"`
 }
 
 var config Config
@@ -47,18 +43,55 @@ var bot *tgbotapi.BotAPI
 var job_counter int
 var shell *sh.Session
 var connect_key string
+var exitcode int
+var sigchan chan os.Signal
 
-func LoadConfig() {
+func Split2(text string) (token, rest string) {
+	r := regexp.MustCompile("(?sm)\\A\\s*([\\S]+)\\s*(.*)\\z")
+	v := r.FindStringSubmatch(text)
+	if v == nil {
+		return "", ""
+	}
+	//v := strings.SplitN(text+" ", " ", 2)
+	//return strings.TrimSpace(v[0]), strings.TrimSpace(v[1])
+	return v[1], v[2]
+}
+
+func GetFirstToken(text string) string {
+	token, _ := Split2(text)
+	return token
+}
+
+func ExeName() string {
 	exe, err := filepath.Abs(os.Args[0])
 	if err != nil {
 		log.Fatal(err)
 	}
-	fname := exe + ".config"
-	data, err := ioutil.ReadFile(fname)
+	return exe
+}
+
+func AppDir() string {
+	dir, err := filepath.Abs(filepath.Dir(ExeName()))
 	if err != nil {
 		log.Fatal(err)
 	}
+	return dir
+}
 
+func AppBaseFileName() string {
+	r, _ := regexp.Compile("^(.*?)(?:\\.exe|\\.EXE|)$")
+	return r.FindStringSubmatch(ExeName())[1]
+}
+
+func GetConfigName() string {
+	return AppBaseFileName() + ".config"
+}
+
+func LoadConfig() {
+	data, err := ioutil.ReadFile(GetConfigName())
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = json.Unmarshal(data, &config)
 	if err != nil {
 		log.Fatal(err)
@@ -75,11 +108,7 @@ func SaveConfig() {
 	if err != nil {
 		log.Fatalf("Marshal error: %s", err)
 	}
-	exe, err := filepath.Abs(os.Args[0])
-	if err != nil {
-		log.Fatalf("Abs(%s) error: %s", os.Args[0], err)
-	}
-	fname := exe + ".config"
+	fname := GetConfigName()
 	if _, err = os.Stat(fname); !os.IsNotExist(err) {
 		// make backup
 		fname_backup := fname + ".bak"
@@ -148,40 +177,59 @@ func inform_at_start() {
 	if connect_key == "" {
 		generate_key()
 	}
-	me, err := bot.GetMe()
+
 	var mestr string
-	if err == nil {
+	if me, err := bot.GetMe(); err == nil {
 		mestr = fmt.Sprintf("%v/%s", me.ID, me.UserName)
 	} else {
 		mestr = "<unknown>"
 	}
-	u, err := user.Current()
+
 	var ustr string
-	if err == nil {
-		ustr = fmt.Sprintf("%s [%s:%s]", u.Username, u.Uid, u.Gid)
+	if u, err := user.Current(); err == nil {
+		ustr = fmt.Sprintf("user:%s\n  uid=%s\n  gid=%s",
+			u.Username, u.Uid, u.Gid)
 	} else {
-		ustr = "<unknown>"
+		ustr = "<unknown user>"
 	}
-	inform(fmt.Sprintf("bot %s\nstarted as user %s\n"+
+
+	var pcstr string
+	if cn, err := syscall.ComputerName(); err == nil {
+		pcstr = fmt.Sprintf("computer: <%s>", cn)
+	} else {
+		pcstr = "<unknown computer>"
+	}
+	inform(fmt.Sprintf("bot %s\nstarted\n"+
 		"and ready to serve.\n"+
+		"%s\n"+
+		"%s\n"+
 		"connect key is:\n"+
-		"%s", mestr, ustr, connect_key))
+		"%s", mestr, ustr, pcstr, connect_key))
+}
+
+func inform_at_stop() {
+	inform("bot stopped")
+}
+
+func send_reply(m *tgbotapi.Message, text string) {
+	msg := tgbotapi.NewMessage(m.Chat.ID, text)
+	msg.ReplyToMessageID = m.MessageID
+
+	if _, err := bot.Send(msg); err != nil {
+		log.Printf("Send reply failed: %s", err)
+	}
 }
 
 func handle_guest(m *tgbotapi.Message) {
-	var msg tgbotapi.MessageConfig
+	var reply string
 	if config.Allow_New && strings.HasPrefix(m.Text, connect_key) {
 		config.Users = append(config.Users, m.Chat.ID)
 		SaveConfig()
-		msg = tgbotapi.NewMessage(m.Chat.ID, fmt.Sprintf(
-			"Ave, %s! Your id=%v|%v",
-			m.Chat.UserName, m.Chat.ID, m.From.ID))
+		reply = fmt.Sprintf("Ave, %s! Your id=%v|%v", m.Chat.UserName, m.Chat.ID, m.From.ID)
 	} else {
-		msg = tgbotapi.NewMessage(m.Chat.ID, fmt.Sprintf(
-			"Hi, %s! your id=%v|%v", m.Chat.UserName, m.Chat.ID, m.From.ID))
+		reply = fmt.Sprintf("Hi, %s! your id=%v|%v", m.Chat.UserName, m.Chat.ID, m.From.ID)
 	}
-	msg.ReplyToMessageID = m.MessageID
-	bot.Send(msg)
+	send_reply(m, reply)
 }
 
 func handle_keygen(m *tgbotapi.Message) {
@@ -192,15 +240,11 @@ func handle_keygen(m *tgbotapi.Message) {
 		return
 	}
 	generate_key()
-	msg := tgbotapi.NewMessage(m.Chat.ID, connect_key)
-	msg.ReplyToMessageID = m.MessageID
-	bot.Send(msg)
+	send_reply(m, connect_key)
 }
 
 func handle_uptime(m *tgbotapi.Message) {
-	msg := tgbotapi.NewMessage(m.Chat.ID, "UPTIME NIY")
-	msg.ReplyToMessageID = m.MessageID
-	bot.Send(msg)
+	send_reply(m, "UPTIME NIY")
 }
 
 func handle_list(m *tgbotapi.Message) {
@@ -208,37 +252,42 @@ func handle_list(m *tgbotapi.Message) {
 	for name, _ := range handlers {
 		commands = append(commands, name)
 	}
-	msg := tgbotapi.NewMessage(m.Chat.ID, fmt.Sprintf(
-		"available commands:\n%q", commands))
-	msg.ReplyToMessageID = m.MessageID
-	bot.Send(msg)
+	send_reply(m, fmt.Sprintf("available commands:\n%q", commands))
+}
+
+func handle_help(m *tgbotapi.Message) {
+	_, cmd := Split2(m.Text)
+	cmd = strings.ToUpper(cmd)
+	var reply string
+	if handler, ok := handlers[cmd]; ok {
+		reply = fmt.Sprintf("help for %s:\n%s", cmd, handler.info)
+	} else {
+		reply = fmt.Sprintf(
+			"no such command: <%s>\n"+
+				"enter LIST for list of available commands", cmd)
+	}
+	send_reply(m, reply)
 }
 
 func handle_exit(m *tgbotapi.Message) {
 	if !isMaster(m.Chat.ID) {
-		msg := tgbotapi.NewMessage(m.Chat.ID, "Insufficient permissions")
-		msg.ReplyToMessageID = m.MessageID
-		bot.Send(msg)
+		send_reply(m, "Insufficient permissions")
 		return
 	}
-	tail := strings.TrimSpace(strings.SplitN(m.Text+" ", " ", 2)[1])
-	exitcode, err := strconv.Atoi(tail)
+	_, tail := Split2(m.Text)
+	exitcode, err := strconv.Atoi(tail) // var exitcode is global
 	if err != nil {
 		exitcode = 0
 	}
-	msg := tgbotapi.NewMessage(m.Chat.ID, fmt.Sprintf("EXIT %d", exitcode))
-	msg.ReplyToMessageID = m.MessageID
-	_, err = bot.Send(msg)
-	if err != nil {
-		log.Printf("Send reply failed: %s", err)
-	}
+	inform(fmt.Sprintf("EXIT %d", exitcode))
 	time.Sleep(1 * time.Second)
+	//	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	os.Exit(exitcode)
 }
 
 func execute(cmd string, args []string) (out []byte, err error) {
 	log.Printf("execute '%s' %v ...", cmd, args)
-	out, err = shell.Command(cmd, args).SetTimeout(EXEC_TIMEOUT).Output()
+	out, err = shell.Command(cmd, args).SetTimeout(EXEC_TIMEOUT).CombinedOutput()
 	limit := len(out)
 	if EXEC_SEND_LIMIT < limit {
 		limit = EXEC_SEND_LIMIT
@@ -250,53 +299,94 @@ func execute(cmd string, args []string) (out []byte, err error) {
 }
 
 func handle_exec(m *tgbotapi.Message) {
-	if m.Text == "" {
+	_, cmd := Split2(m.Text)
+	parts := strings.Fields(cmd)
+	if len(parts) == 0 {
+		msg := tgbotapi.NewMessage(m.Chat.ID, "command missing")
+		msg.ReplyToMessageID = m.MessageID
+		_, err := bot.Send(msg)
+		if err != nil {
+			log.Printf("Send reply failed: %s", err)
+		}
 		return
 	}
-	cmd := strings.TrimSpace(strings.SplitN(m.Text, " ", 2)[1])
-	parts := strings.Fields(cmd)
 	head := parts[0]
 	parts = parts[1:len(parts)]
 	out, err := execute(head, parts)
 	sout := fmt.Sprintf("err:%v\nresult\n%s", err, out)
 	log.Print(sout)
-	msg := tgbotapi.NewMessage(m.Chat.ID, sout)
-	msg.ReplyToMessageID = m.MessageID
-	_, err = bot.Send(msg)
-	if err != nil {
-		log.Printf("Send reply failed: %s", err)
-	}
+	send_reply(m, sout)
 }
 
 func handle_shexec(m *tgbotapi.Message) {
-	if m.Text == "" {
+	if config.Shell == "" {
+		send_reply(m, "shell executable is not set")
 		return
 	}
-	log.Printf("shell execute '%s' ...", m.Text)
-	out, err := execute("/bin/sh", []string{"-c", m.Text})
-	sout := fmt.Sprintf("err:%v\nresult\n%s", err, out)
-	msg := tgbotapi.NewMessage(m.Chat.ID, sout)
-	msg.ReplyToMessageID = m.MessageID
-	_, err = bot.Send(msg)
-	if err != nil {
-		log.Printf("Send reply failed: %s", err)
+	_, script := Split2(m.Text)
+	log.Printf("execute shell script: %s", script)
+	out, err := shell.Command(config.Shell).SetInput(script).SetTimeout(EXEC_TIMEOUT).CombinedOutput()
+	limit := len(out)
+	if EXEC_SEND_LIMIT < limit {
+		limit = EXEC_SEND_LIMIT
+		out = out[:limit]
 	}
+	sout := fmt.Sprintf("err:%v\nresult\n%s", err, out)
+	log.Print(sout)
+	send_reply(m, sout)
 }
 
-type Handler func(m *tgbotapi.Message)
+func handle_setsh(m *tgbotapi.Message) {
+	_, shell := Split2(m.Text)
+	if !isMaster(m.Chat.ID) {
+		send_reply(m, "Insufficient permissions")
+		return
+	}
+	if shell == "" {
+		send_reply(m, "shell required")
+		return
+	}
+	config.Shell = shell
+	SaveConfig()
+	send_reply(m, fmt.Sprintf("shell set to <%s>", config.Shell))
+}
+
+func handle_unsetsh(m *tgbotapi.Message) {
+	if !isMaster(m.Chat.ID) {
+		send_reply(m, "Insufficient permissions")
+		return
+	}
+	config.Shell = ""
+	SaveConfig()
+	send_reply(m, fmt.Sprintf("shell set to empty string"))
+}
+
+func handle_get(m *tgbotapi.Message) {
+}
+
+func handle_put(m *tgbotapi.Message) {
+}
+
+type HandlerProc func(m *tgbotapi.Message)
+type Handler struct {
+	proc HandlerProc
+	info string
+}
 
 var handlers map[string]Handler = make(map[string]Handler)
 
-func addHandler(name string, handler Handler) {
-	handlers[name] = handler
+func addHandler(name string, proc HandlerProc, info string) {
+	handlers[strings.ToUpper(name)] = Handler{proc: proc, info: info}
 }
 
 func dispatch(m *tgbotapi.Message) bool {
-	for command, handler := range handlers {
-		if isCommand(m.Text, command) {
-			go handler(m)
-			return true
-		}
+	cmd := strings.ToUpper(GetFirstToken(m.Text))
+	handler, ok := handlers[cmd]
+	if ok {
+		go handler.proc(m)
+		return true
+	} else {
+		return false
 	}
 	return false
 }
@@ -313,26 +403,47 @@ func workSession() {
 		time.Sleep(RECONNECT_INTERVAL)
 	}
 	//bot.Debug = true
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	signal.Notify(c, syscall.SIGTERM)
+	sigchan = make(chan os.Signal, 1)
+	signal.Notify(sigchan, os.Interrupt)
+	signal.Notify(sigchan, syscall.SIGTERM)
+	//defer Stop(sigchan)
 	go func() {
-		sig := <-c
+		sig := <-sigchan
 		inform(fmt.Sprintf("Got signal <%s>.\nExecution terminated", sig))
-		os.Exit(0)
+		os.Exit(exitcode)
 	}()
 	shell = sh.NewSession()
 	log.Printf("authiorized as %s", bot.Self.UserName)
 	inform_at_start()
-	addHandler("KEYGEN", handle_keygen)
-	//	addHandler("KEY", handle_keygen)
-	addHandler("UPTIME", handle_uptime)
-	//	addHandler("UP", handle_uptime)
-	addHandler("EXIT", handle_exit)
-	addHandler("LIST", handle_list)
-	//	addHandler("COMMANDS", handle_list)
-	addHandler("EXEC", handle_exec)
-	addHandler("SH", handle_shexec)
+	defer inform_at_stop()
+
+	addHandler("KEYGEN", handle_keygen,
+		"KEYGEN\n"+
+			"generate and show new access key. invalidate old access key")
+	addHandler("UPTIME", handle_uptime,
+		"UPTIME\n"+
+			"show utime for tgshell")
+	addHandler("EXIT", handle_exit,
+		"EXIT [<num:exitcode>]\n"+
+			"invoke tgshell exit/restart routine")
+	addHandler("LIST", handle_list,
+		"LIST\n"+
+			"show list of available commands")
+	addHandler("HELP", handle_help,
+		"HELP command\n"+
+			"show command usage")
+	addHandler("EXEC", handle_exec,
+		"EXEC command [params...]\n"+
+			"execute noninteractive command on remote system.")
+	addHandler("SH", handle_shexec,
+		"SH params[...]\n"+
+			"execute shell sequence on remote system")
+	addHandler("SETSH", handle_setsh,
+		"SETSH path/to/the/shell/executable\n"+
+			"set shell executable for SH command")
+	addHandler("UNSETSH", handle_unsetsh,
+		"UNSETSH\n"+
+			"set shell executable for SH command to empty string")
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
