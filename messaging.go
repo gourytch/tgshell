@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os/user"
-	"syscall"
+	//"syscall"
 	"time"
 
 	"github.com/go-telegram-bot-api/telegram-bot-api"
@@ -43,19 +43,23 @@ func inform_at_start() {
 	} else {
 		ustr = "<unknown user>"
 	}
-
-	var pcstr string
-	if cn, err := syscall.ComputerName(); err == nil {
-		pcstr = fmt.Sprintf("computer: <%s>", cn)
-	} else {
-		pcstr = "<unknown computer>"
-	}
+	/*
+		var pcstr string
+		if cn, err := syscall.ComputerName(); err == nil {
+			pcstr = fmt.Sprintf("computer: <%s>", cn)
+		} else {
+			pcstr = "<unknown computer>"
+		}
+	*/
 	inform(fmt.Sprintf("bot %s\nstarted\n"+
 		"and ready to serve.\n"+
 		"%s\n"+
-		"%s\n"+
+		// "%s\n"+
 		"connect key is:\n"+
-		"%s", mestr, ustr, pcstr, connect_key))
+		"%s", mestr,
+		ustr,
+		// pcstr,
+		connect_key))
 }
 
 func inform_at_stop() {
