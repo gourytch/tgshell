@@ -29,6 +29,6 @@ func handle_scrot(m *tgbotapi.Message) {
 }
 
 func register_screenshot() {
-	addHandler("SCROT", handle_get, "SCROT [<display>]\n"+
+	addHandler("SCROT", handle_scrot, "SCROT [<display>]\n"+
 		"take screenshot")
 }
