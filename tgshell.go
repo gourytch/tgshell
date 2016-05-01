@@ -236,6 +236,19 @@ func handle_exit(m *tgbotapi.Message) {
 	os.Exit(exitcode)
 }
 
+func execute(cmd string, args []string) (out []byte, err error) {
+	log.Printf("execute '%s' %v ...", cmd, args)
+	out, err = shell.Command(cmd, args).SetTimeout(EXEC_TIMEOUT).Output()
+	limit := len(out)
+	if EXEC_SEND_LIMIT < limit {
+		limit = EXEC_SEND_LIMIT
+		out = out[:limit]
+	}
+	sout := fmt.Sprintf("err:%v\nresult\n%s", err, out)
+	log.Print(sout)
+	return
+}
+
 func handle_exec(m *tgbotapi.Message) {
 	if m.Text == "" {
 		return
@@ -244,14 +257,24 @@ func handle_exec(m *tgbotapi.Message) {
 	parts := strings.Fields(cmd)
 	head := parts[0]
 	parts = parts[1:len(parts)]
-	log.Printf("execute '%s' ...", cmd)
-	out, err := shell.Command(head, parts).SetTimeout(EXEC_TIMEOUT).Output()
-	limit := len(out)
-	if EXEC_SEND_LIMIT < limit {
-		limit = EXEC_SEND_LIMIT
-	}
-	sout := fmt.Sprintf("err:%v\nresult\n%s", err, out[:limit])
+	out, err := execute(head, parts)
+	sout := fmt.Sprintf("err:%v\nresult\n%s", err, out)
 	log.Print(sout)
+	msg := tgbotapi.NewMessage(m.Chat.ID, sout)
+	msg.ReplyToMessageID = m.MessageID
+	_, err = bot.Send(msg)
+	if err != nil {
+		log.Printf("Send reply failed: %s", err)
+	}
+}
+
+func handle_shexec(m *tgbotapi.Message) {
+	if m.Text == "" {
+		return
+	}
+	log.Printf("shell execute '%s' ...", m.Text)
+	out, err := execute("/bin/sh", []string{"-c", m.Text})
+	sout := fmt.Sprintf("err:%v\nresult\n%s", err, out)
 	msg := tgbotapi.NewMessage(m.Chat.ID, sout)
 	msg.ReplyToMessageID = m.MessageID
 	_, err = bot.Send(msg)
@@ -309,7 +332,7 @@ func workSession() {
 	addHandler("LIST", handle_list)
 	//	addHandler("COMMANDS", handle_list)
 	addHandler("EXEC", handle_exec)
-	//	addHandler("DO", handle_exec)
+	addHandler("SH", handle_shexec)
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
