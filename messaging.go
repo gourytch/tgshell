@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os/user"
+	//"path/filepath"
 	//"syscall"
 	"time"
 
@@ -70,6 +71,20 @@ func send_reply(m *tgbotapi.Message, text string) {
 	msg := tgbotapi.NewMessage(m.Chat.ID, text)
 	msg.ReplyToMessageID = m.MessageID
 
+	if _, err := bot.Send(msg); err != nil {
+		log.Printf("Send reply failed: %s", err)
+	}
+}
+
+func send_reply_document(m *tgbotapi.Message, fname string, data []byte) {
+	var msg tgbotapi.DocumentConfig
+	if data == nil {
+		msg = tgbotapi.NewDocumentUpload(m.Chat.ID, fname)
+	} else {
+		fb := tgbotapi.FileBytes{Name: fname, Bytes: data}
+		msg = tgbotapi.NewDocumentUpload(m.Chat.ID, fb)
+	}
+	msg.ReplyToMessageID = m.MessageID
 	if _, err := bot.Send(msg); err != nil {
 		log.Printf("Send reply failed: %s", err)
 	}
