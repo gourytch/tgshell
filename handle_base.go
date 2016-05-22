@@ -57,7 +57,15 @@ func handle_keygen(m *tgbotapi.Message) {
 	send_reply(m, connect_key)
 }
 
+func handle_me(m *tgbotapi.Message) {
+	send_reply(m, fmt.Sprintf("user id=%v\nchat id=%v",
+		m.Contact.UserID, m.Chat.ID))
+}
+
 func register_base() {
+	addHandler("ME", handle_me,
+		"ME\n"+
+			"show your ID")
 	addHandler("KEYGEN", handle_keygen, "KEYGEN\n"+
 		"generate and show new access key. invalidate old access key")
 	addHandler("UPTIME", handle_uptime,

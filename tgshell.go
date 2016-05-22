@@ -90,6 +90,7 @@ func workSession() {
 	}
 	for update := range updates {
 		m := update.Message
+		log.Printf("got message:\n%s", ppj(m))
 		if !dispatch(m) {
 			msg := tgbotapi.NewMessage(m.Chat.ID, fmt.Sprintf(
 				"U said: <<%s>>", m.Text))
@@ -102,6 +103,7 @@ func workSession() {
 
 func main() {
 	LoadConfig()
+	DumpConfig()
 	for {
 		workSession()
 		log.Println("delay and return to work")

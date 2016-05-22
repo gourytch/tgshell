@@ -12,6 +12,10 @@ import (
 )
 
 func handle_get(m *tgbotapi.Message) {
+	if !isMaster(m.Chat.ID) {
+		send_reply(m, "Insufficient permissions")
+		return
+	}
 	_, txt := Split2(m.Text)
 	if txt == "" {
 		send_reply(m, "file name required")

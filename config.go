@@ -41,11 +41,19 @@ func CheckDatadir() {
 		}
 	}
 }
+func DumpConfig() {
+	log.Printf("current config:\n%s", ppj(config))
+
+}
 
 func LoadConfig() {
-	data, err := ioutil.ReadFile(GetConfigName())
+	fname := GetConfigName()
+	log.Printf("Load config from '%s' ...", fname)
+	data, err := ioutil.ReadFile(fname)
 	if err != nil {
 		log.Fatal(err)
+	} else {
+		log.Printf("... loaded")
 	}
 	err = json.Unmarshal(data, &config)
 	if err != nil {
@@ -64,7 +72,7 @@ func LoadConfig() {
 }
 
 func SaveConfig() {
-	data, err := json.Marshal(config)
+	data, err := json.MarshalIndent(config, "", "\t")
 	if err != nil {
 		log.Fatalf("Marshal error: %s", err)
 	}
@@ -83,5 +91,11 @@ func SaveConfig() {
 			log.Fatalf("Rename(%s, %s) failed: %s", fname, fname_backup, err)
 		}
 	}
+	log.Printf("Save config to '%s' ...", fname)
 	err = ioutil.WriteFile(fname, data, 0600)
+	if err != nil {
+		log.Printf("... error:", err)
+	} else {
+		log.Printf("... saved")
+	}
 }

@@ -9,6 +9,10 @@ import (
 )
 
 func handle_exec(m *tgbotapi.Message) {
+	if !isUser(m.Chat.ID) {
+		send_reply(m, "Insufficient permissions")
+		return
+	}
 	_, cmdtext := Split2(m.Text)
 	parts := strings.Fields(cmdtext)
 	if len(parts) == 0 {

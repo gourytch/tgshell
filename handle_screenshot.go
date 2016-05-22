@@ -8,6 +8,10 @@ import (
 )
 
 func handle_scrot(m *tgbotapi.Message) {
+	if !isUser(m.Chat.ID) {
+		send_reply(m, "Insufficient permissions")
+		return
+	}
 	_, dsp := Split2(m.Text)
 	if dsp == "" {
 		dsp = config.Display
@@ -17,6 +21,7 @@ func handle_scrot(m *tgbotapi.Message) {
 			SaveConfig()
 		}
 	}
+	CheckDatadir()
 	fname := "scrot_" + time.Now().Format("20060102_150405") + ".jpg"
 	out, err := shell.SetEnv("DISPLAY", dsp).
 		SetDir(config.Data_Dir).

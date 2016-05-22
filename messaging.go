@@ -20,7 +20,9 @@ func inform(text string) {
 		msg := tgbotapi.NewMessage(id, s)
 		_, err := bot.Send(msg)
 		if err != nil {
-			log.Printf("Send to %v failed: %s", id, err)
+			log.Printf("inform failed:\nmessage=%s\nerror=%s", ppj(msg), err)
+		} else {
+			log.Printf("message sent:\n%s", ppj(msg))
 		}
 	}
 }
@@ -72,7 +74,9 @@ func send_reply(m *tgbotapi.Message, text string) {
 	msg.ReplyToMessageID = m.MessageID
 
 	if _, err := bot.Send(msg); err != nil {
-		log.Printf("Send reply failed: %s", err)
+		log.Printf("send_reply failed:\nmessage=%s\nerror=%s", ppj(msg), err)
+	} else {
+		log.Printf("reply sent:\n%s", ppj(msg))
 	}
 }
 
@@ -86,7 +90,9 @@ func send_reply_document(m *tgbotapi.Message, fname string, data []byte) {
 	}
 	msg.ReplyToMessageID = m.MessageID
 	if _, err := bot.Send(msg); err != nil {
-		log.Printf("Send reply failed: %s", err)
+		log.Printf("send_reply_document failed:\nmessage=%#v\nerror=%#v", msg, err)
+	} else {
+		log.Printf("document reply sent:\n%#v", msg)
 	}
 }
 
@@ -100,6 +106,8 @@ func send_reply_image(m *tgbotapi.Message, fname string, data []byte) {
 	}
 	msg.ReplyToMessageID = m.MessageID
 	if _, err := bot.Send(msg); err != nil {
-		log.Printf("Send reply failed: %s", err)
+		log.Printf("send_reply_image failed:\nmessage=%#v\nerror=%#v", msg, err)
+	} else {
+		log.Printf("image reply sent:\n%#v", msg)
 	}
 }

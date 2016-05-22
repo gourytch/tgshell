@@ -8,6 +8,10 @@ import (
 )
 
 func handle_shexec(m *tgbotapi.Message) {
+	if !isUser(m.Chat.ID) {
+		send_reply(m, "Insufficient permissions")
+		return
+	}
 	if config.Shell == "" {
 		send_reply(m, "shell executable is not set")
 		return

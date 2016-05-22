@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"math/rand"
 	"os"
 	"regexp"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/codeskyblue/go-sh"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
@@ -18,6 +20,7 @@ const (
 	EXEC_SEND_LIMIT    = 4000
 	RECONNECT_INTERVAL = 15 * time.Second
 	CONNKEY_SIZE       = 9
+	USE_SPEW           = true
 )
 
 type Config struct {
@@ -48,6 +51,15 @@ var connect_key string
 var exitcode int
 var sigchan chan os.Signal
 
+func ppj(v interface{}) string {
+	if USE_SPEW {
+		return spew.Sdump(v)
+	} else {
+		b, _ := json.MarshalIndent(v, "", "  ")
+		return string(b)
+	}
+}
+
 func random_string(n int) string {
 	var key []byte
 	count := (n + 3) * 3 / 4
@@ -61,9 +73,12 @@ func generate_key() {
 	connect_key = random_string(CONNKEY_SIZE)
 }
 
+var splitRx *regexp.Regexp = regexp.MustCompile("(?sm)\\A\\s*([\\S]+)\\s*(.*)\\z")
+
 func Split2(text string) (token, rest string) {
-	r := regexp.MustCompile("(?sm)\\A\\s*([\\S]+)\\s*(.*)\\z")
-	v := r.FindStringSubmatch(text)
+	//r := regexp.MustCompile("(?sm)\\A\\s*([\\S]+)\\s*(.*)\\z")
+	//v := r.FindStringSubmatch(text)
+	v := splitRx.FindStringSubmatch(text)
 	if v == nil {
 		return "", ""
 	}
