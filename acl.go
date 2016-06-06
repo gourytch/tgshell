@@ -78,3 +78,61 @@ func acl_touch(id int, name string) {
 		SaveConfig()
 	}
 }
+
+func acl_grant(id int, name string) bool {
+	if isMaster(id) {
+		return false
+	}
+	if name == ACL_ANY {
+		return false
+	}
+	if name == ACL_ALL {
+		r := false
+		for _, ability := range acl_abilities() {
+			r = r || acl_grant(id, ability)
+		}
+		return r
+	}
+	if acl_can(id, name) {
+		return false
+	}
+	e := acl_entry(id)
+	e.Allow = append(e.Allow, name)
+	return true
+}
+
+func acl_revoke(id int, name string) bool {
+	if isMaster(id) {
+		return false
+	}
+	e := acl_entry(id)
+	if name == ACL_ALL {
+		if len(e.Allow) == 0 {
+			return false
+		}
+		e.Allow = []string{}
+		return true
+	}
+	for ix, ability := range e.Allow {
+		if ability == name {
+			e.Allow = append(e.Allow[:ix], e.Allow[ix+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+func acl_abilities() (list []string) {
+	c := make(map[string]int)
+	for _, h := range handlers {
+		if h.perm != ACL_ANY {
+			c[h.perm] = 1
+		}
+	}
+	c[ACL_INFORM] = 1
+	c[ACL_SUPERVISE] = 1
+	for k, _ := range c {
+		list = append(list, k)
+	}
+	return
+}

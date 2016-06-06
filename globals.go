@@ -25,7 +25,8 @@ const (
 )
 
 const (
-	ACL_ANY       = "" // pseudo rule. not added to allowlist
+	ACL_ANY       = ""  // pseudo rule means 'anyone can'. not added to allowlist
+	ACL_ALL       = "*" // pseudo rule means "All rules for this user
 	ACL_INFORM    = "inform"
 	ACL_UTIL      = "util"
 	ACL_SUPERVISE = "supervise"
@@ -49,14 +50,13 @@ func (e *ACLEntry) String() string {
 }
 
 type Config struct {
-	Token     string     `json:"token"`
-	Master    int        `json:"master"`
-	Allow_New bool       `json:"allow_new"`
-	Users     []ACLEntry `json:"users"`
-	Shell     string     `json:"shell"`
-	Data_Dir  string     `json:"datadir"`
-	Display   string     `jdon:"display"`
-	Host      string     `json:"-"`
+	Token    string     `json:"token"`
+	Master   int        `json:"master"`
+	Users    []ACLEntry `json:"users"`
+	Shell    string     `json:"shell"`
+	Data_Dir string     `json:"datadir"`
+	Display  string     `jdon:"display"`
+	Host     string     `json:"-"`
 }
 
 type HandlerProc func(m *tgbotapi.Message)

@@ -56,6 +56,7 @@ func register_all() {
 	register_sh()
 	register_files()
 	register_screenshot()
+	register_acl()
 }
 
 func workSession() {
