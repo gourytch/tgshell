@@ -9,14 +9,10 @@ import (
 )
 
 func handle_exec(m *tgbotapi.Message) {
-	if !isUser(m.Chat.ID) {
-		send_reply(m, "Insufficient permissions")
-		return
-	}
 	_, cmdtext := Split2(m.Text)
 	parts := strings.Fields(cmdtext)
 	if len(parts) == 0 {
-		send_reply(m, "command required")
+		send_reply(m, "command required", false)
 		return
 	}
 	cmd := parts[0]
@@ -30,11 +26,12 @@ func handle_exec(m *tgbotapi.Message) {
 	}
 	sout := fmt.Sprintf("err:%v\nresult\n%s", err, out)
 	log.Print(sout)
-	send_reply(m, sout)
+	send_reply(m, sout, true)
 }
 
 func register_exec() {
 	addHandler("EXEC", handle_exec,
 		"EXEC command [params...]\n"+
-			"execute noninteractive command on remote system.")
+			"execute noninteractive command on remote system.",
+		ACL_EXEC)
 }

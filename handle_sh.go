@@ -8,12 +8,8 @@ import (
 )
 
 func handle_shexec(m *tgbotapi.Message) {
-	if !isUser(m.Chat.ID) {
-		send_reply(m, "Insufficient permissions")
-		return
-	}
 	if config.Shell == "" {
-		send_reply(m, "shell executable is not set")
+		send_reply(m, "shell executable is not set", true)
 		return
 	}
 	_, script := Split2(m.Text)
@@ -26,42 +22,37 @@ func handle_shexec(m *tgbotapi.Message) {
 	}
 	sout := fmt.Sprintf("err:%v\nresult\n%s", err, out)
 	log.Print(sout)
-	send_reply(m, sout)
+	send_reply(m, sout, true)
 }
 
 func handle_setsh(m *tgbotapi.Message) {
 	_, shell := Split2(m.Text)
-	if !isMaster(m.Chat.ID) {
-		send_reply(m, "Insufficient permissions")
-		return
-	}
 	if shell == "" {
-		send_reply(m, "shell required")
+		send_reply(m, "shell required", true)
 		return
 	}
 	config.Shell = shell
 	SaveConfig()
-	send_reply(m, fmt.Sprintf("shell set to <%s>", config.Shell))
+	send_reply(m, fmt.Sprintf("shell set to <%s>", config.Shell), true)
 }
 
 func handle_unsetsh(m *tgbotapi.Message) {
-	if !isMaster(m.Chat.ID) {
-		send_reply(m, "Insufficient permissions")
-		return
-	}
 	config.Shell = ""
 	SaveConfig()
-	send_reply(m, fmt.Sprintf("shell set to empty string"))
+	send_reply(m, fmt.Sprintf("shell set to empty string"), true)
 }
 
 func register_sh() {
 	addHandler("SH", handle_shexec,
 		"SH params[...]\n"+
-			"execute shell sequence on remote system")
+			"execute shell sequence on remote system",
+		ACL_EXEC)
 	addHandler("SETSH", handle_setsh,
 		"SETSH path/to/the/shell/executable\n"+
-			"set shell executable for SH command")
+			"set shell executable for SH command",
+		ACL_ADMIN)
 	addHandler("UNSETSH", handle_unsetsh,
 		"UNSETSH\n"+
-			"set shell executable for SH command to empty string")
+			"set shell executable for SH command to empty string",
+		ACL_ADMIN)
 }

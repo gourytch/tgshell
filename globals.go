@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"os"
 	"regexp"
@@ -23,15 +24,39 @@ const (
 	USE_SPEW           = true
 )
 
+const (
+	ACL_ANY       = "" // pseudo rule. not added to allowlist
+	ACL_INFORM    = "inform"
+	ACL_UTIL      = "util"
+	ACL_SUPERVISE = "supervise"
+	ACL_EXEC      = "exec"
+	ACL_SCROT     = "scrot"
+	ACL_ADMIN     = "admin"
+	ACL_FILES     = "files"
+)
+
+type ACLEntry struct {
+	Id    int      `json:"id"`
+	Name  string   `json:"name"`
+	Allow []string `json:"allow"`
+}
+
+func (e *ACLEntry) String() string {
+	if e == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("[%v]%v", e.Id, e.Name)
+}
+
 type Config struct {
-	Token     string  `json:"token"`
-	Master    int64   `json:"master"`
-	Allow_New bool    `json:"allow_new"`
-	Users     []int64 `json:"users"`
-	Shell     string  `json:"shell"`
-	Data_Dir  string  `json:"datadir"`
-	Display   string  `jdon:"display"`
-	Host      string  `json:"-"`
+	Token     string     `json:"token"`
+	Master    int        `json:"master"`
+	Allow_New bool       `json:"allow_new"`
+	Users     []ACLEntry `json:"users"`
+	Shell     string     `json:"shell"`
+	Data_Dir  string     `json:"datadir"`
+	Display   string     `jdon:"display"`
+	Host      string     `json:"-"`
 }
 
 type HandlerProc func(m *tgbotapi.Message)
@@ -39,6 +64,7 @@ type HandlerProc func(m *tgbotapi.Message)
 type Handler struct {
 	proc HandlerProc
 	info string
+	perm string
 }
 
 var handlers map[string]Handler = make(map[string]Handler)
@@ -92,25 +118,10 @@ func GetFirstToken(text string) string {
 	return token
 }
 
-func isMaster(id int64) bool {
-	if config.Master == id {
-		return true
-	}
-	return false
+func isMaster(id int) bool {
+	return config.Master == id
 }
 
-func isUser(id int64) bool {
-	if config.Master == id {
-		return true
-	}
-	for _, i := range config.Users {
-		if id == i {
-			return true
-		}
-	}
-	return false
-}
-
-func addHandler(name string, proc HandlerProc, info string) {
-	handlers[strings.ToUpper(name)] = Handler{proc: proc, info: info}
+func addHandler(name string, proc HandlerProc, info string, perm string) {
+	handlers[strings.ToUpper(name)] = Handler{proc, info, perm}
 }

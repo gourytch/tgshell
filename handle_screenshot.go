@@ -8,10 +8,6 @@ import (
 )
 
 func handle_scrot(m *tgbotapi.Message) {
-	if !isUser(m.Chat.ID) {
-		send_reply(m, "Insufficient permissions")
-		return
-	}
 	_, dsp := Split2(m.Text)
 	if dsp == "" {
 		dsp = config.Display
@@ -28,7 +24,7 @@ func handle_scrot(m *tgbotapi.Message) {
 		Command("scrot", fname).
 		CombinedOutput()
 	if err != nil {
-		send_reply(m, fmt.Sprintf("scrot error: %s\nmessage:\n%s", err, out))
+		send_reply(m, fmt.Sprintf("scrot error: %s\nmessage:\n%s", err, out), true)
 	} else {
 		//send_reply_image(m, config.Data_Dir+"/"+fname, nil)
 		send_reply_document(m, config.Data_Dir+"/"+fname, nil)
@@ -38,5 +34,7 @@ func handle_scrot(m *tgbotapi.Message) {
 
 func register_screenshot() {
 	addHandler("SCROT", handle_scrot, "SCROT [<display>]\n"+
-		"take screenshot")
+		"take screenshot",
+		ACL_SCROT)
+
 }

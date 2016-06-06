@@ -14,29 +14,38 @@ import (
 )
 
 func handle_guest(m *tgbotapi.Message) {
+	id := m.From.ID
+	name := m.From.String()
 	var reply string
-	if config.Allow_New && strings.HasPrefix(m.Text, connect_key) {
-		config.Users = append(config.Users, m.Chat.ID)
-		SaveConfig()
-		reply = fmt.Sprintf("Ave, %s! Your id=%v|%v", m.Chat.UserName, m.Chat.ID, m.From.ID)
+	if !acl_exists(id) {
+		reply = fmt.Sprintf("Hello, %s! I will memorize you", name)
+		acl_touch(id, name)
 	} else {
-		reply = fmt.Sprintf("Hi, %s! your id=%v|%v", m.Chat.UserName, m.Chat.ID, m.From.ID)
+		reply = fmt.Sprintf("I know you, %s.", name)
 	}
-	send_reply(m, reply)
+	send_reply(m, reply, false)
 }
 
 func handle_uptime(m *tgbotapi.Message) {
-	send_reply(m, "UPTIME NIY")
+	send_reply(m, "UPTIME NIY", false)
 }
 
 func dispatch(m *tgbotapi.Message) bool {
+	id := m.From.ID
+	name := m.From.String()
 	cmd := strings.ToUpper(GetFirstToken(m.Text))
 	handler, ok := handlers[cmd]
 	if ok {
-		go handler.proc(m)
+		if acl_can(id, handler.perm) {
+			go handler.proc(m)
+		} else {
+			send_reply(m, fmt.Sprintf("[%v]%v cannot into %s",
+				id, name, handler.perm), true)
+		}
 		return true
-	} else {
-		return false
+	}
+	if m.Chat.Type == "private" {
+		send_reply(m, fmt.Sprintf("I don't understood, what %v is", cmd), true)
 	}
 	return false
 }
@@ -91,11 +100,18 @@ func workSession() {
 	for update := range updates {
 		m := update.Message
 		log.Printf("got message:\n%s", ppj(m))
+		from := m.From
+		if from == nil {
+			continue // we have no deals with anonymous messages
+		}
+		acl_touch(from.ID, from.String()) // remember/refresh acl
 		if !dispatch(m) {
-			msg := tgbotapi.NewMessage(m.Chat.ID, fmt.Sprintf(
-				"U said: <<%s>>", m.Text))
-			msg.ReplyToMessageID = m.MessageID
-			bot.Send(msg)
+			if m.Chat.Type == "private" {
+				msg := tgbotapi.NewMessage(m.Chat.ID, fmt.Sprintf(
+					"U said: <<%s>>", m.Text))
+				msg.ReplyToMessageID = m.MessageID
+				bot.Send(msg)
+			}
 		}
 	}
 	log.Println("finish work session")
