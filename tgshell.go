@@ -101,6 +101,9 @@ func workSession() {
 	for update := range updates {
 		m := update.Message
 		log.Printf("got message:\n%s", ppj(m))
+		if m == nil {
+			continue // we have no deals with malformed messages
+		}
 		from := m.From
 		if from == nil {
 			continue // we have no deals with anonymous messages
