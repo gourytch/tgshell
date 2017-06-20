@@ -6,32 +6,46 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 )
 
-func ExeName() string {
-	exe, err := filepath.Abs(os.Args[0])
-	if err != nil {
-		log.Fatal(err)
+const (
+	BACKUP_EXT = ".bak"
+	CONFIG_EXT = ".config"
+	DATA_EXT   = ".data"
+	LOG_EXT    = ".log"
+)
+
+func RealPath(path string) string {
+	r, _ := filepath.Abs(filepath.FromSlash(path))
+	return r
+}
+
+func TrimLastExt(fname string) string {
+	name := filepath.Base(fname)
+	ext := filepath.Ext(name)
+	lfname := len(fname)
+	lname := len(name)
+	lext := len(ext)
+	if lext == 0 || lext == lname {
+		return fname
 	}
-	return exe
+	return fname[0 : lfname-lext]
+}
+
+func ExeName() string {
+	return RealPath(os.Args[0])
 }
 
 func AppDir() string {
-	dir, err := filepath.Abs(filepath.Dir(ExeName()))
-	if err != nil {
-		log.Fatal(err)
-	}
-	return dir
+	return filepath.Dir(RealPath(ExeName()))
 }
 
 func AppBaseFileName() string {
-	r := regexp.MustCompile("^(.*?)(?:\\.exe|\\.EXE|)$")
-	return r.FindStringSubmatch(ExeName())[1]
+	return TrimLastExt(ExeName())
 }
 
 func GetConfigName() string {
-	return AppBaseFileName() + ".config"
+	return AppBaseFileName() + CONFIG_EXT
 }
 
 func CheckDatadir() {
@@ -41,19 +55,11 @@ func CheckDatadir() {
 		}
 	}
 }
-func DumpConfig() {
-	log.Printf("current config:\n%s", ppj(config))
-
-}
 
 func LoadConfig() {
-	fname := GetConfigName()
-	log.Printf("Load config from '%s' ...", fname)
-	data, err := ioutil.ReadFile(fname)
+	data, err := ioutil.ReadFile(GetConfigName())
 	if err != nil {
 		log.Fatal(err)
-	} else {
-		log.Printf("... loaded")
 	}
 	err = json.Unmarshal(data, &config)
 	if err != nil {
@@ -72,7 +78,8 @@ func LoadConfig() {
 }
 
 func SaveConfig() {
-	data, err := json.MarshalIndent(config, "", "\t")
+	data, err := json.MarshalIndent(config, "", "  ") // json.Marshal(config)
+
 	if err != nil {
 		log.Fatalf("Marshal error: %s", err)
 	}
@@ -91,11 +98,5 @@ func SaveConfig() {
 			log.Fatalf("Rename(%s, %s) failed: %s", fname, fname_backup, err)
 		}
 	}
-	log.Printf("Save config to '%s' ...", fname)
 	err = ioutil.WriteFile(fname, data, 0600)
-	if err != nil {
-		log.Printf("... error:", err)
-	} else {
-		log.Printf("... saved")
-	}
 }
