@@ -124,6 +124,7 @@ func workSession() {
 }
 
 func main() {
+	SetupLogger()
 	LoadConfig()
 	for {
 		workSession()

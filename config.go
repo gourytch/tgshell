@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/natefinch/lumberjack"
 )
 
 const (
@@ -46,6 +48,19 @@ func AppBaseFileName() string {
 
 func GetConfigName() string {
 	return AppBaseFileName() + CONFIG_EXT
+}
+
+func GetLogName() string {
+	return AppBaseFileName() + LOG_EXT
+}
+
+func SetupLogger() {
+	log.SetOutput(&lumberjack.Logger{
+		Filename:   GetLogName(),
+		MaxSize:    10, // megabytes
+		MaxBackups: 10,
+		MaxAge:     28, //days
+	})
 }
 
 func CheckDatadir() {
