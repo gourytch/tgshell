@@ -57,6 +57,8 @@ func register_all() {
 	register_files()
 	register_screenshot()
 	register_acl()
+	register_lock()
+	register_halt()
 }
 
 func workSession() {
@@ -123,7 +125,6 @@ func workSession() {
 
 func main() {
 	LoadConfig()
-	DumpConfig()
 	for {
 		workSession()
 		log.Println("delay and return to work")

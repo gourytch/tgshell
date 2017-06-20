@@ -34,6 +34,8 @@ const (
 	ACL_SCROT     = "scrot"
 	ACL_ADMIN     = "admin"
 	ACL_FILES     = "files"
+	ACL_HALT      = "halt"
+	ACL_LOCK      = "lock"
 )
 
 type ACLEntry struct {
