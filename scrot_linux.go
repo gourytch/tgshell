@@ -3,9 +3,7 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
-	"time"
 )
 
 func scrot(lossless bool) (data []byte, fname string, err error) {
@@ -22,4 +20,5 @@ func scrot(lossless bool) (data []byte, fname string, err error) {
 	if err != nil {
 		return
 	}
+	return
 }
