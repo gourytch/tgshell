@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 )
 
-func scrot(lossless bool) (data []byte, fname string, err error) {
+func scrot(lossless bool) (data []byte, err error) {
 	full_name := RealPath(config.Data_Dir + scrotFName(lossless))
 	CheckDatadir()
 	out, err := shell.SetEnv("DISPLAY", config.Display).
