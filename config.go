@@ -152,14 +152,25 @@ func ValidateConfig() error {
 	if config.Master == 0 {
 		return ErrMasterUndefined
 	}
-	if config.Exec.SendDelay == 0 {
-		config.Exec.SendDelay = DEFAULT_EXEC_SEND_DELAY
+	dirty := false
+	if config.Exec.Interval == 0 {
+		config.Exec.Interval = DEFAULT_SEND_INTERVAL
+		dirty = true
 	}
-	if config.Exec.SendLimit == 0 {
-		config.Exec.SendLimit = DEFAULT_EXEC_SEND_LIMIT
+	if config.Exec.PageSize == 0 {
+		config.Exec.PageSize = DEFAULT_SEND_PAGE_SIZE
+		dirty = true
 	}
 	if config.Exec.Timeout == 0 {
 		config.Exec.Timeout = DEFAULT_EXEC_TIMEOUT
+		dirty = true
+	}
+	if config.Exec.MaxPages == 0 {
+		config.Exec.MaxPages = DEFAULT_SEND_MAX_PAGES
+		dirty = true
+	}
+	if dirty {
+		SaveConfig()
 	}
 	return nil
 }

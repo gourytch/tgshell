@@ -8,4 +8,5 @@ tgshell-config.json
 *.~
 *.tmp
 *.log
+*.jpg
 core.*

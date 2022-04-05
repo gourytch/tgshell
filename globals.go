@@ -16,12 +16,14 @@ import (
 )
 
 const (
-	DEFAULT_EXEC_TIMEOUT    = 5
-	DEFAULT_EXEC_SEND_DELAY = 1
-	DEFAULT_EXEC_SEND_LIMIT = 4000
-	RECONNECT_INTERVAL      = 15 * time.Second
-	CONNKEY_SIZE            = 9
-	USE_SPEW                = true
+	DEFAULT_EXEC_TIMEOUT   = 10
+	DEFAULT_SEND_INTERVAL  = 1
+	DEFAULT_SEND_PAGE_SIZE = 4000
+	DEFAULT_SEND_MAX_PAGES = 3
+
+	RECONNECT_INTERVAL = 15 * time.Second
+	CONNKEY_SIZE       = 9
+	USE_SPEW           = true
 )
 
 const (
@@ -52,9 +54,10 @@ func (e *ACLEntry) String() string {
 }
 
 type ExecConfig struct {
-	Timeout   int
-	SendDelay int
-	SendLimit int
+	Timeout  int `json:"timeout" yaml:"timeout"`
+	Interval int `json:"interval" yaml:"interval"`
+	PageSize int `json:"page_size" yaml:"page_size"`
+	MaxPages int `json:"max_pages" yaml:"max_pages"`
 }
 
 type Config struct {

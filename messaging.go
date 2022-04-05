@@ -128,7 +128,7 @@ func send_reply(m *tgbotapi.Message, notable bool, text ...string) {
 	for _, line := range text {
 		now := time.Now().UTC()
 		if !lastSent.IsZero() {
-			nextSend := lastSent.Add(time.Duration(config.Exec.SendDelay) * time.Second)
+			nextSend := lastSent.Add(time.Duration(config.Exec.Interval) * time.Second)
 			if nextSend.After(now) {
 				dt := nextSend.Sub(now)
 				log.Printf("delay %d ms ...", dt/time.Millisecond)

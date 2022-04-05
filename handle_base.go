@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html"
 	"os"
 	"strconv"
 	"strings"
@@ -26,11 +27,11 @@ func handle_help(m *tgbotapi.Message) {
 	cmd = strings.ToUpper(cmd)
 	var reply string
 	if handler, ok := handlers[cmd]; ok {
-		reply = fmt.Sprintf("help for %s:\n%s", cmd, handler.info)
+		reply = fmt.Sprintf("help for <b>%s</b>:\n%s", html.EscapeString(cmd), html.EscapeString(handler.info))
 	} else {
 		reply = fmt.Sprintf(
-			"no such command: <%s>\n"+
-				"enter LIST for list of available commands", cmd)
+			"no such command: &lt;<b>%s</b>&rt;\n"+
+				"enter <b>LIST</b> for list of available commands", html.EscapeString(cmd))
 	}
 	send_reply(m, false, reply)
 }

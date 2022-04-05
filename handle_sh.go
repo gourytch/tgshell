@@ -15,21 +15,16 @@ func handle_shexec(m *tgbotapi.Message) {
 	}
 	_, script := Split2(m.Text)
 	log.Printf("execute shell script: %s", script)
-	session := shell.Command(config.Shell).SetInput(script)
+	sh := shell.Command(config.Shell).SetInput(script)
 	if config.Exec.Timeout > 0 {
-		session = session.SetTimeout(time.Duration(config.Exec.Timeout) * time.Second)
+		sh = sh.SetTimeout(time.Duration(config.Exec.Timeout) * time.Second)
 	}
 	tStart := time.Now().UTC()
-	out, err := session.CombinedOutput()
+	out, err := sh.CombinedOutput()
 	tFinish := time.Now().UTC()
-	limit := len(out)
-	if config.Exec.SendLimit < limit {
-		limit = config.Exec.SendLimit
-		out = out[:limit]
-	}
 	sout := ExecFmt(tFinish.Sub(tStart)/time.Millisecond, err, out)
-	log.Print(sout)
 	send_reply(m, true, sout...)
+	send_reply_document(m, fmt.Sprintf("sh-%s.log", tStart.Format("20060102_150405")), out)
 }
 
 func handle_setsh(m *tgbotapi.Message) {
