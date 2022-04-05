@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/codeskyblue/go-sh"
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 func handle_guest(m *tgbotapi.Message) {
@@ -125,7 +125,17 @@ func workSession() {
 
 func main() {
 	SetupLogger()
-	LoadConfig()
+	if err := LoadConfig(); err != nil {
+		fmt.Println(err.Error())
+		if err := SaveConfig(); err != nil {
+			fmt.Println(err.Error())
+		}
+		os.Exit(1)
+	}
+	if err := ValidateConfig(); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 	for {
 		workSession()
 		log.Println("delay and return to work")

@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 func handle_exec(m *tgbotapi.Message) {
@@ -16,7 +16,7 @@ func handle_exec(m *tgbotapi.Message) {
 		return
 	}
 	cmd := parts[0]
-	args := parts[1:len(parts)]
+	args := parts[1:]
 	log.Printf("execute '%s' %v ...", cmd, args)
 	out, err := shell.Command(cmd, args).SetTimeout(EXEC_TIMEOUT).CombinedOutput()
 	limit := len(out)

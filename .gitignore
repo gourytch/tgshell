@@ -2,7 +2,10 @@ tgshell
 tgshell.exe
 tgshell.config
 tgshell.exe.config
+tgshell-config.yaml
+tgshell-config.json
 *.bak
 *.~
 *.tmp
+*.log
 core.*

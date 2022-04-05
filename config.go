@@ -2,19 +2,27 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/natefinch/lumberjack"
+	"gopkg.in/yaml.v2"
 )
 
 const (
-	BACKUP_EXT = ".bak"
-	CONFIG_EXT = ".config"
-	DATA_EXT   = ".data"
-	LOG_EXT    = ".log"
+	BACKUP_EXT     = ".bak"
+	EXT_YAML       = ".yaml"
+	EXT_JSON       = ".json"
+	USE_CONFIG_YML = true
+	DATA_EXT       = ".data"
+	LOG_EXT        = ".log"
+)
+
+var (
+	ErrTokenUndefined  = errors.New("token is empty")
+	ErrMasterUndefined = errors.New("master id is not set")
 )
 
 func RealPath(path string) string {
@@ -47,7 +55,12 @@ func AppBaseFileName() string {
 }
 
 func GetConfigName() string {
-	return AppBaseFileName() + CONFIG_EXT
+	pfx := AppBaseFileName() + "-config"
+	if USE_CONFIG_YML {
+		return pfx + EXT_YAML
+	} else {
+		return pfx + EXT_JSON
+	}
 }
 
 func GetLogName() string {
@@ -71,14 +84,20 @@ func CheckDatadir() {
 	}
 }
 
-func LoadConfig() {
-	data, err := ioutil.ReadFile(GetConfigName())
+func LoadConfig() error {
+	cfname := GetConfigName()
+	f, err := os.Open(cfname)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	err = json.Unmarshal(data, &config)
+	defer f.Close()
+	if USE_CONFIG_YML {
+		err = yaml.NewDecoder(f).Decode(&config)
+	} else {
+		err = json.NewDecoder(f).Decode(&config)
+	}
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	config.Host, err = os.Hostname()
 	if err != nil {
@@ -90,28 +109,48 @@ func LoadConfig() {
 		CheckDatadir()
 		SaveConfig()
 	}
+	return nil
 }
 
-func SaveConfig() {
-	data, err := json.MarshalIndent(config, "", "  ") // json.Marshal(config)
-
-	if err != nil {
-		log.Fatalf("Marshal error: %s", err)
+func MakeBackup(fname string) {
+	if _, err := os.Stat(fname); os.IsNotExist(err) {
+		return
 	}
-	fname := GetConfigName()
-	if _, err = os.Stat(fname); !os.IsNotExist(err) {
-		// make backup
-		fname_backup := fname + ".bak"
-		if _, err := os.Stat(fname_backup); !os.IsNotExist(err) {
-			err = os.Remove(fname_backup)
-			if err != nil {
-				log.Fatalf("Remove(%s) failed: %s", fname_backup, err)
-			}
-		}
-		err = os.Rename(fname, fname_backup)
+	// make backup
+	fname_backup := fname + ".bak"
+	if _, err := os.Stat(fname_backup); !os.IsNotExist(err) {
+		err = os.Remove(fname_backup)
 		if err != nil {
-			log.Fatalf("Rename(%s, %s) failed: %s", fname, fname_backup, err)
+			log.Fatalf("Remove(%s) failed: %s", fname_backup, err)
 		}
 	}
-	err = ioutil.WriteFile(fname, data, 0600)
+	if err := os.Rename(fname, fname_backup); err != nil {
+		log.Fatalf("Rename(%s, %s) failed: %s", fname, fname_backup, err)
+	}
+}
+
+func SaveConfig() error {
+	cfname := GetConfigName()
+	MakeBackup(cfname)
+	f, err := os.Create(cfname)
+	defer f.Close()
+	if err != nil {
+		return err
+	}
+	if USE_CONFIG_YML {
+		err = yaml.NewEncoder(f).Encode(config)
+	} else {
+		err = json.NewEncoder(f).Encode(config)
+	}
+	return err
+}
+
+func ValidateConfig() error {
+	if config.Token == "" {
+		return ErrTokenUndefined
+	}
+	if config.Master == 0 {
+		return ErrMasterUndefined
+	}
+	return nil
 }

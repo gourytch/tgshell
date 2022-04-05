@@ -12,7 +12,7 @@ import (
 
 	"github.com/codeskyblue/go-sh"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 const (
@@ -52,12 +52,12 @@ func (e *ACLEntry) String() string {
 }
 
 type Config struct {
-	Token    string     `json:"token"`
-	Master   int        `json:"master"`
-	Users    []ACLEntry `json:"users"`
-	Shell    string     `json:"shell"`
-	Data_Dir string     `json:"datadir"`
-	Display  string     `jdon:"display"`
+	Token    string     `json:"token" yaml:"token"`
+	Master   int        `json:"master" yaml:"master"`
+	Users    []ACLEntry `json:"users" yaml:"users"`
+	Shell    string     `json:"shell" yaml:"shell"`
+	Data_Dir string     `json:"datadir" yaml:"datadir"`
+	Display  string     `jdon:"display" yaml:"display"`
 	Host     string     `json:"-"`
 }
 
@@ -89,10 +89,10 @@ func ppj(v interface{}) string {
 }
 
 func random_string(n int) string {
-	var key []byte
 	count := (n + 3) * 3 / 4
+	key := make([]byte, n)
 	for i := 0; i < count; i++ {
-		key = append(key, byte(rand.Int()&0xFF))
+		key[i] = byte(rand.Int() & 0xFF)
 	}
 	return base64.StdEncoding.EncodeToString(key)[:n]
 }
@@ -101,17 +101,13 @@ func generate_key() {
 	connect_key = random_string(CONNKEY_SIZE)
 }
 
-var splitRx *regexp.Regexp = regexp.MustCompile("(?sm)\\A\\s*([\\S]+)\\s*(.*)\\z")
+var splitRx *regexp.Regexp = regexp.MustCompile(`(?sm)\A\s*([\S]+)\s*(.*)\z`)
 
 func Split2(text string) (token, rest string) {
-	//r := regexp.MustCompile("(?sm)\\A\\s*([\\S]+)\\s*(.*)\\z")
-	//v := r.FindStringSubmatch(text)
 	v := splitRx.FindStringSubmatch(text)
 	if v == nil {
 		return "", ""
 	}
-	//v := strings.SplitN(text+" ", " ", 2)
-	//return strings.TrimSpace(v[0]), strings.TrimSpace(v[1])
 	return v[1], v[2]
 }
 
