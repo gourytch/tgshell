@@ -131,7 +131,7 @@ func acl_abilities() (list []string) {
 	}
 	c[ACL_INFORM] = 1
 	c[ACL_SUPERVISE] = 1
-	for k, _ := range c {
+	for k := range c {
 		list = append(list, k)
 	}
 	return
