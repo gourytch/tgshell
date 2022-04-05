@@ -3,13 +3,13 @@ package main
 import (
 	"strings"
 
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 func handle_get(m *tgbotapi.Message) {
 	_, txt := Split2(m.Text)
 	if txt == "" {
-		send_reply(m, "file name required", false)
+		send_reply(m, false, "file name required")
 		return
 	}
 	fnames := strings.Fields(txt)
@@ -19,7 +19,7 @@ func handle_get(m *tgbotapi.Message) {
 }
 
 func handle_put(m *tgbotapi.Message) {
-	send_reply(m, "NIY", false)
+	send_reply(m, false, "NIY")
 }
 
 func register_files() {

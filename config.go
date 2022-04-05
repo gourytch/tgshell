@@ -117,7 +117,7 @@ func MakeBackup(fname string) {
 		return
 	}
 	// make backup
-	fname_backup := fname + ".bak"
+	fname_backup := fname + BACKUP_EXT
 	if _, err := os.Stat(fname_backup); !os.IsNotExist(err) {
 		err = os.Remove(fname_backup)
 		if err != nil {
@@ -151,6 +151,15 @@ func ValidateConfig() error {
 	}
 	if config.Master == 0 {
 		return ErrMasterUndefined
+	}
+	if config.Exec.SendDelay == 0 {
+		config.Exec.SendDelay = DEFAULT_EXEC_SEND_DELAY
+	}
+	if config.Exec.SendLimit == 0 {
+		config.Exec.SendLimit = DEFAULT_EXEC_SEND_LIMIT
+	}
+	if config.Exec.Timeout == 0 {
+		config.Exec.Timeout = DEFAULT_EXEC_TIMEOUT
 	}
 	return nil
 }

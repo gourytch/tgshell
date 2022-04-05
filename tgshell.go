@@ -1,9 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -23,11 +25,11 @@ func handle_guest(m *tgbotapi.Message) {
 	} else {
 		reply = fmt.Sprintf("I know you, %s.", name)
 	}
-	send_reply(m, reply, false)
+	send_reply(m, false, reply)
 }
 
 func handle_uptime(m *tgbotapi.Message) {
-	send_reply(m, "UPTIME NIY", false)
+	send_reply(m, false, "UPTIME NIY")
 }
 
 func dispatch(m *tgbotapi.Message) bool {
@@ -39,13 +41,13 @@ func dispatch(m *tgbotapi.Message) bool {
 		if acl_can(id, handler.perm) {
 			go handler.proc(m)
 		} else {
-			send_reply(m, fmt.Sprintf("[%v]%v cannot into %s",
-				id, name, handler.perm), true)
+			send_reply(m, true, fmt.Sprintf("[%v]%v cannot into %s",
+				id, name, handler.perm))
 		}
 		return true
 	}
 	if m.Chat.Type == "private" {
-		send_reply(m, fmt.Sprintf("I don't understood, what %v is", cmd), true)
+		send_reply(m, true, fmt.Sprintf("I don't understood, what %v is", cmd))
 	}
 	return false
 }
@@ -123,7 +125,25 @@ func workSession() {
 	log.Println("finish work session")
 }
 
+func fg_main() {
+
+}
+
+var fg = flag.Bool("fg", false, "start in foreground mode")
+
+func start_daemon() {
+	args := append(append([]string(nil), "-fg"), os.Args[1:]...)
+	cmd := exec.Command(os.Args[0], args...)
+	cmd.Start()
+	fmt.Println("[PID]", cmd.Process.Pid)
+	os.Exit(0)
+}
+
 func main() {
+	flag.Parse()
+	if !*fg {
+		start_daemon()
+	}
 	SetupLogger()
 	if err := LoadConfig(); err != nil {
 		fmt.Println(err.Error())

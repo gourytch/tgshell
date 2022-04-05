@@ -6,7 +6,7 @@ import (
 	"os/user"
 	"time"
 
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 func inform(text string) {
@@ -122,17 +122,31 @@ func inform_at_stop() {
 	inform("bot stopped")
 }
 
-func send_reply(m *tgbotapi.Message, text string, notable bool) {
-	msg := tgbotapi.NewMessage(m.Chat.ID, text)
-	msg.ReplyToMessageID = m.MessageID
+var lastSent time.Time
 
-	if reply, err := bot.Send(msg); err != nil {
-		log.Printf("send_reply failed:\nmessage=%s\nerror=%s", ppj(msg), err)
-	} else {
-		log.Printf("reply sent:\n%s", ppj(msg))
-		if notable {
-			notice_interaction(m, &reply)
+func send_reply(m *tgbotapi.Message, notable bool, text ...string) {
+	for _, line := range text {
+		now := time.Now().UTC()
+		if !lastSent.IsZero() {
+			nextSend := lastSent.Add(time.Duration(config.Exec.SendDelay) * time.Second)
+			if nextSend.After(now) {
+				dt := nextSend.Sub(now)
+				log.Printf("delay %d ms ...", dt/time.Millisecond)
+				time.Sleep(dt)
+			}
 		}
+		msg := tgbotapi.NewMessage(m.Chat.ID, line)
+		msg.ParseMode = "HTML"
+		msg.ReplyToMessageID = m.MessageID
+		if reply, err := bot.Send(msg); err != nil {
+			log.Printf("send_reply failed:\nmessage=%s\nerror=%s", ppj(msg), err)
+		} else {
+			log.Printf("reply sent:\n%s", ppj(msg))
+			if notable {
+				notice_interaction(m, &reply)
+			}
+		}
+		lastSent = now
 	}
 }
 

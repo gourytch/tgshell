@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 func handle_list(m *tgbotapi.Message) {
@@ -18,7 +18,7 @@ func handle_list(m *tgbotapi.Message) {
 			commands = append(commands, name)
 		}
 	}
-	send_reply(m, fmt.Sprintf("available commands:\n%q", commands), false)
+	send_reply(m, false, fmt.Sprintf("available commands:\n%q", commands))
 }
 
 func handle_help(m *tgbotapi.Message) {
@@ -32,7 +32,7 @@ func handle_help(m *tgbotapi.Message) {
 			"no such command: <%s>\n"+
 				"enter LIST for list of available commands", cmd)
 	}
-	send_reply(m, reply, false)
+	send_reply(m, false, reply)
 }
 
 func handle_exit(m *tgbotapi.Message) {
@@ -50,13 +50,13 @@ func handle_exit(m *tgbotapi.Message) {
 
 func handle_keygen(m *tgbotapi.Message) {
 	generate_key()
-	send_reply(m, connect_key, true)
+	send_reply(m, true, connect_key)
 }
 
 func handle_me(m *tgbotapi.Message) {
 	e := acl_entry(m.From.ID)
-	send_reply(m, fmt.Sprintf("You %v in %v#%v",
-		e.String(), m.Chat.Type, m.Chat.ID), false)
+	send_reply(m, false, fmt.Sprintf("You %v in %v#%v",
+		e.String(), m.Chat.Type, m.Chat.ID))
 }
 
 func register_base() {

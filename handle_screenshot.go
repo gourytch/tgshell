@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 func scrotFName(lossless bool) string {
@@ -30,7 +30,7 @@ func do_scrot(m *tgbotapi.Message, lossless bool) {
 	data, err := scrot(lossless)
 	fname := scrotFName(lossless)
 	if err != nil {
-		send_reply(m, fmt.Sprintf("scrot error: %s", err), true)
+		send_reply(m, true, fmt.Sprintf("scrot error: %s", err))
 	} else {
 		if lossless {
 			send_reply_document(m, fname, data)

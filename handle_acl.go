@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 func handle_acl_list(m *tgbotapi.Message) {
@@ -17,7 +17,7 @@ func handle_acl_list(m *tgbotapi.Message) {
 			fmt.Fprintf(&b, "%s: %v\n", e.String(), e.Allow)
 		}
 	}
-	send_reply(m, b.String(), true)
+	send_reply(m, true, b.String())
 }
 
 func handle_acl_abilities(m *tgbotapi.Message) {
@@ -26,25 +26,25 @@ func handle_acl_abilities(m *tgbotapi.Message) {
 	for _, ability := range abilities {
 		fmt.Fprintf(&b, "%s\n", ability)
 	}
-	send_reply(m, b.String(), true)
+	send_reply(m, true, b.String())
 }
 
 func handle_acl_update(m *tgbotapi.Message) {
 	_, cmdtext := Split2(m.Text)
 	if cmdtext == "" {
-		send_reply(m, "malformed command", true)
+		send_reply(m, true, "malformed command")
 		return
 	}
 	idstr, L := Split2(cmdtext)
 	id, err := strconv.Atoi(idstr)
 	if err != nil {
-		send_reply(m, fmt.Sprintf("malformed id `%v` in string `%v`",
-			idstr, cmdtext), true)
+		send_reply(m, true, fmt.Sprintf("malformed id `%v` in string `%v`",
+			idstr, cmdtext))
 		return
 	}
 	e := acl_entry(id)
 	if e == nil {
-		send_reply(m, fmt.Sprintf("unknown id `%v`", id), true)
+		send_reply(m, true, fmt.Sprintf("unknown id `%v`", id))
 		return
 	}
 	var b bytes.Buffer
@@ -77,7 +77,7 @@ func handle_acl_update(m *tgbotapi.Message) {
 	if dirty {
 		SaveConfig()
 	}
-	send_reply(m, b.String(), true)
+	send_reply(m, true, b.String())
 }
 
 func register_acl() {

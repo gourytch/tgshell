@@ -16,12 +16,12 @@ import (
 )
 
 const (
-	EXEC_TIMEOUT       = 5 * time.Second
-	EXEC_SEND_DELAY    = 1 * time.Second
-	EXEC_SEND_LIMIT    = 4000
-	RECONNECT_INTERVAL = 15 * time.Second
-	CONNKEY_SIZE       = 9
-	USE_SPEW           = true
+	DEFAULT_EXEC_TIMEOUT    = 5
+	DEFAULT_EXEC_SEND_DELAY = 1
+	DEFAULT_EXEC_SEND_LIMIT = 4000
+	RECONNECT_INTERVAL      = 15 * time.Second
+	CONNKEY_SIZE            = 9
+	USE_SPEW                = true
 )
 
 const (
@@ -51,6 +51,12 @@ func (e *ACLEntry) String() string {
 	return fmt.Sprintf("[%v]%v", e.Id, e.Name)
 }
 
+type ExecConfig struct {
+	Timeout   int
+	SendDelay int
+	SendLimit int
+}
+
 type Config struct {
 	Token    string     `json:"token" yaml:"token"`
 	Master   int        `json:"master" yaml:"master"`
@@ -58,7 +64,8 @@ type Config struct {
 	Shell    string     `json:"shell" yaml:"shell"`
 	Data_Dir string     `json:"datadir" yaml:"datadir"`
 	Display  string     `jdon:"display" yaml:"display"`
-	Host     string     `json:"-"`
+	Exec     ExecConfig `json:"exec" yaml:"exec"`
+	Host     string     `json:"-" yaml:"-"`
 }
 
 type HandlerProc func(m *tgbotapi.Message)

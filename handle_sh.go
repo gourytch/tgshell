@@ -3,43 +3,50 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 func handle_shexec(m *tgbotapi.Message) {
 	if config.Shell == "" {
-		send_reply(m, "shell executable is not set", true)
+		send_reply(m, true, "shell executable is not set")
 		return
 	}
 	_, script := Split2(m.Text)
 	log.Printf("execute shell script: %s", script)
-	out, err := shell.Command(config.Shell).SetInput(script).SetTimeout(EXEC_TIMEOUT).CombinedOutput()
+	session := shell.Command(config.Shell).SetInput(script)
+	if config.Exec.Timeout > 0 {
+		session = session.SetTimeout(time.Duration(config.Exec.Timeout) * time.Second)
+	}
+	tStart := time.Now().UTC()
+	out, err := session.CombinedOutput()
+	tFinish := time.Now().UTC()
 	limit := len(out)
-	if EXEC_SEND_LIMIT < limit {
-		limit = EXEC_SEND_LIMIT
+	if config.Exec.SendLimit < limit {
+		limit = config.Exec.SendLimit
 		out = out[:limit]
 	}
-	sout := fmt.Sprintf("err:%v\nresult\n%s", err, out)
+	sout := ExecFmt(tFinish.Sub(tStart)/time.Millisecond, err, out)
 	log.Print(sout)
-	send_reply(m, sout, true)
+	send_reply(m, true, sout...)
 }
 
 func handle_setsh(m *tgbotapi.Message) {
 	_, shell := Split2(m.Text)
 	if shell == "" {
-		send_reply(m, "shell required", true)
+		send_reply(m, true, "shell required")
 		return
 	}
 	config.Shell = shell
 	SaveConfig()
-	send_reply(m, fmt.Sprintf("shell set to <%s>", config.Shell), true)
+	send_reply(m, true, fmt.Sprintf("shell set to <%s>", config.Shell))
 }
 
 func handle_unsetsh(m *tgbotapi.Message) {
 	config.Shell = ""
 	SaveConfig()
-	send_reply(m, fmt.Sprintf("shell set to empty string"), true)
+	send_reply(m, true, fmt.Sprintf("shell set to empty string"))
 }
 
 func register_sh() {

@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package main
@@ -11,7 +12,7 @@ import (
 func do_halt() error {
 	out, err := shell.
 		Command("SHUTDOWN.EXE", "/p", "/f").
-		SetTimeout(EXEC_TIMEOUT).
+		SetTimeout(DEFAULT_EXEC_TIMEOUT * time.Second).
 		CombinedOutput()
 	log.Printf("*** SHUTDOWN INVOKED ***")
 	log.Printf("err = %v", err)
